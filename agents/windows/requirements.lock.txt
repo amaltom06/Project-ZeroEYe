@@ -1,0 +1,8 @@
+# Versions tested on Windows / Python 3.14.3. Regenerate after a verified update.
+certifi==2026.7.22
+charset-normalizer==3.5.2
+defusedxml==0.7.1
+idna==3.20
+pywin32==312; sys_platform == "win32"
+requests==2.34.2
+urllib3==2.8.0

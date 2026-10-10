@@ -1,0 +1,2 @@
+import {rm} from 'node:fs/promises';import {fileURLToPath} from 'node:url';import {relative,isAbsolute} from 'node:path';
+const workspace=fileURLToPath(new URL('../',import.meta.url));const target=fileURLToPath(new URL('../apps/api/dist',import.meta.url));const inside=relative(workspace,target);if(inside.startsWith('..')||isAbsolute(inside)||inside!=='apps'+(process.platform==='win32'?'\\':'/')+'api'+(process.platform==='win32'?'\\':'/')+'dist')throw new Error('Refusing unexpected build directory');await rm(target,{recursive:true,force:true});

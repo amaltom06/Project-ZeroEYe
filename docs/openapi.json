@@ -1,0 +1,3511 @@
+{
+  "openapi": "3.0.3",
+  "info": {
+    "title": "ZEROEYE API",
+    "version": "0.1.0",
+    "description": "Development contract. Agent auth is separate from browser sessions. See API.md for bounded result shapes and extra payloads."
+  },
+  "servers": [
+    {
+      "url": "/api"
+    }
+  ],
+  "components": {
+    "securitySchemes": {
+      "browserSession": {
+        "type": "apiKey",
+        "in": "cookie",
+        "name": "zeroeye_session"
+      },
+      "csrfToken": {
+        "type": "apiKey",
+        "in": "header",
+        "name": "X-CSRF-Token"
+      },
+      "deviceBearer": {
+        "type": "http",
+        "scheme": "bearer"
+      }
+    },
+    "schemas": {
+      "Error": {
+        "type": "object",
+        "required": [
+          "error"
+        ],
+        "properties": {
+          "error": {
+            "type": "string"
+          },
+          "issues": {
+            "type": "array",
+            "items": {
+              "type": "object"
+            }
+          }
+        }
+      },
+      "Register": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "email",
+          "name",
+          "password",
+          "organization"
+        ],
+        "properties": {
+          "email": {
+            "type": "string",
+            "format": "email",
+            "maxLength": 254
+          },
+          "name": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 100
+          },
+          "password": {
+            "type": "string",
+            "minLength": 12,
+            "maxLength": 128
+          },
+          "organization": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 100
+          },
+          "demo": {
+            "type": "boolean",
+            "default": false
+          }
+        }
+      },
+      "Login": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "email",
+          "password"
+        ],
+        "properties": {
+          "email": {
+            "type": "string",
+            "format": "email"
+          },
+          "password": {
+            "type": "string",
+            "maxLength": 128
+          }
+        }
+      },
+      "Event": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "eventKey",
+          "provider",
+          "windowsEventId",
+          "timestamp"
+        ],
+        "properties": {
+          "eventKey": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 160
+          },
+          "provider": {
+            "type": "string",
+            "enum": [
+              "Microsoft-Windows-Security-Auditing",
+              "Microsoft-Windows-Eventlog"
+            ]
+          },
+          "windowsEventId": {
+            "type": "integer",
+            "enum": [
+              4624,
+              4625,
+              4634,
+              4648,
+              4672,
+              4688,
+              4720,
+              4726,
+              4740,
+              1102
+            ]
+          },
+          "timestamp": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "username": {
+            "type": "string",
+            "maxLength": 256
+          },
+          "sourceIp": {
+            "type": "string",
+            "description": "IPv4 or IPv6; optional"
+          },
+          "processName": {
+            "type": "string",
+            "maxLength": 512
+          },
+          "metadata": {
+            "type": "object",
+            "additionalProperties": false,
+            "properties": {
+              "logonType": {
+                "type": "string",
+                "maxLength": 8
+              },
+              "commandLine": {
+                "type": "string",
+                "maxLength": 2048
+              },
+              "recordId": {
+                "type": "string",
+                "maxLength": 30
+              },
+              "channel": {
+                "type": "string",
+                "enum": [
+                  "Security"
+                ]
+              },
+              "status": {
+                "type": "string",
+                "maxLength": 40
+              }
+            }
+          }
+        }
+      },
+      "EventBatch": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "events"
+        ],
+        "properties": {
+          "events": {
+            "type": "array",
+            "minItems": 1,
+            "maxItems": 200,
+            "items": {
+              "$ref": "#/components/schemas/Event"
+            }
+          }
+        }
+      },
+      "Enroll": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "enrollmentToken",
+          "hostname",
+          "osVersion",
+          "agentVersion"
+        ],
+        "properties": {
+          "enrollmentToken": {
+            "type": "string",
+            "minLength": 32,
+            "maxLength": 64
+          },
+          "hostname": {
+            "type": "string",
+            "maxLength": 253
+          },
+          "osVersion": {
+            "type": "string",
+            "maxLength": 128
+          },
+          "agentVersion": {
+            "type": "string",
+            "enum": [
+              "0.1.0"
+            ]
+          }
+        }
+      },
+      "Heartbeat": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "queueDepth"
+        ],
+        "properties": {
+          "queueDepth": {
+            "type": "integer",
+            "minimum": 0,
+            "maximum": 100000
+          },
+          "error": {
+            "type": "string",
+            "maxLength": 300,
+            "nullable": true
+          }
+        }
+      },
+      "IncidentCreate": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "alertId"
+        ],
+        "properties": {
+          "alertId": {
+            "type": "string",
+            "format": "uuid"
+          }
+        }
+      },
+      "IncidentUpdate": {
+        "type": "object",
+        "additionalProperties": false,
+        "properties": {
+          "status": {
+            "type": "string",
+            "enum": [
+              "NEW",
+              "INVESTIGATING",
+              "AWAITING_APPROVAL",
+              "CONTAINED",
+              "RESOLVED",
+              "FALSE_POSITIVE"
+            ]
+          },
+          "assignedTo": {
+            "type": "string",
+            "format": "uuid",
+            "nullable": true
+          },
+          "resolutionNotes": {
+            "type": "string",
+            "maxLength": 5000,
+            "description": "Nonempty notes required when resolving"
+          }
+        }
+      },
+      "Policy": {
+        "type": "object",
+        "additionalProperties": false,
+        "properties": {
+          "enabled": {
+            "type": "boolean"
+          },
+          "threshold": {
+            "type": "integer",
+            "minimum": 2,
+            "maximum": 100
+          },
+          "windowSeconds": {
+            "type": "integer",
+            "minimum": 30,
+            "maximum": 600
+          },
+          "suppressionSeconds": {
+            "type": "integer",
+            "minimum": 0,
+            "maximum": 3600
+          },
+          "allowedHours": {
+            "type": "array",
+            "maxItems": 24,
+            "items": {
+              "type": "integer",
+              "minimum": 0,
+              "maximum": 23
+            }
+          },
+          "trustedUsers": {
+            "type": "array",
+            "maxItems": 100,
+            "items": {
+              "type": "string",
+              "maxLength": 256
+            }
+          }
+        }
+      },
+      "Settings": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "retentionDays",
+          "externalAiEnabled"
+        ],
+        "properties": {
+          "retentionDays": {
+            "type": "integer",
+            "minimum": 7,
+            "maximum": 365
+          },
+          "externalAiEnabled": {
+            "type": "boolean"
+          }
+        }
+      }
+    }
+  },
+  "paths": {
+    "/health": {
+      "get": {
+        "summary": "Database health",
+        "security": [],
+        "parameters": [],
+        "responses": {
+          "200": {
+            "description": "Success; JSON unless requesting CSV"
+          },
+          "201": {
+            "description": "Record/session created where applicable"
+          },
+          "400": {
+            "description": "Invalid request",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Authentication invalid/expired"
+          },
+          "403": {
+            "description": "Origin, CSRF, tenant or role rejected"
+          },
+          "404": {
+            "description": "Record not found in authorized tenant"
+          },
+          "409": {
+            "description": "Unique record already exists"
+          },
+          "413": {
+            "description": "Request larger than 512 KiB"
+          },
+          "429": {
+            "description": "IP rate limit exceeded"
+          },
+          "500": {
+            "description": "Controlled internal error"
+          },
+          "503": {
+            "description": "Dependency not configured or unavailable"
+          }
+        }
+      }
+    },
+    "/auth/register": {
+      "post": {
+        "summary": "Register and create organization",
+        "security": [],
+        "parameters": [],
+        "responses": {
+          "200": {
+            "description": "Success; JSON unless requesting CSV"
+          },
+          "201": {
+            "description": "Record/session created where applicable"
+          },
+          "400": {
+            "description": "Invalid request",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Authentication invalid/expired"
+          },
+          "403": {
+            "description": "Origin, CSRF, tenant or role rejected"
+          },
+          "404": {
+            "description": "Record not found in authorized tenant"
+          },
+          "409": {
+            "description": "Unique record already exists"
+          },
+          "413": {
+            "description": "Request larger than 512 KiB"
+          },
+          "429": {
+            "description": "IP rate limit exceeded"
+          },
+          "500": {
+            "description": "Controlled internal error"
+          },
+          "503": {
+            "description": "Dependency not configured or unavailable"
+          }
+        },
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/Register"
+              }
+            }
+          }
+        }
+      }
+    },
+    "/auth/login": {
+      "post": {
+        "summary": "Create browser session",
+        "security": [],
+        "parameters": [],
+        "responses": {
+          "200": {
+            "description": "Success; JSON unless requesting CSV"
+          },
+          "201": {
+            "description": "Record/session created where applicable"
+          },
+          "400": {
+            "description": "Invalid request",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Authentication invalid/expired"
+          },
+          "403": {
+            "description": "Origin, CSRF, tenant or role rejected"
+          },
+          "404": {
+            "description": "Record not found in authorized tenant"
+          },
+          "409": {
+            "description": "Unique record already exists"
+          },
+          "413": {
+            "description": "Request larger than 512 KiB"
+          },
+          "429": {
+            "description": "IP rate limit exceeded"
+          },
+          "500": {
+            "description": "Controlled internal error"
+          },
+          "503": {
+            "description": "Dependency not configured or unavailable"
+          }
+        },
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/Login"
+              }
+            }
+          }
+        }
+      }
+    },
+    "/auth/logout": {
+      "post": {
+        "summary": "Revoke current session",
+        "security": [
+          {
+            "browserSession": [],
+            "csrfToken": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "X-Organization-ID",
+            "in": "header",
+            "required": false,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            },
+            "description": "Membership-checked; defaults to first membership"
+          },
+          {
+            "name": "Origin",
+            "in": "header",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uri"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Success; JSON unless requesting CSV"
+          },
+          "201": {
+            "description": "Record/session created where applicable"
+          },
+          "400": {
+            "description": "Invalid request",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Authentication invalid/expired"
+          },
+          "403": {
+            "description": "Origin, CSRF, tenant or role rejected"
+          },
+          "404": {
+            "description": "Record not found in authorized tenant"
+          },
+          "409": {
+            "description": "Unique record already exists"
+          },
+          "413": {
+            "description": "Request larger than 512 KiB"
+          },
+          "429": {
+            "description": "IP rate limit exceeded"
+          },
+          "500": {
+            "description": "Controlled internal error"
+          },
+          "503": {
+            "description": "Dependency not configured or unavailable"
+          }
+        }
+      }
+    },
+    "/auth/me": {
+      "get": {
+        "summary": "User, organizations and CSRF token",
+        "security": [
+          {
+            "browserSession": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "X-Organization-ID",
+            "in": "header",
+            "required": false,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            },
+            "description": "Membership-checked; defaults to first membership"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Success; JSON unless requesting CSV"
+          },
+          "201": {
+            "description": "Record/session created where applicable"
+          },
+          "400": {
+            "description": "Invalid request",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Authentication invalid/expired"
+          },
+          "403": {
+            "description": "Origin, CSRF, tenant or role rejected"
+          },
+          "404": {
+            "description": "Record not found in authorized tenant"
+          },
+          "409": {
+            "description": "Unique record already exists"
+          },
+          "413": {
+            "description": "Request larger than 512 KiB"
+          },
+          "429": {
+            "description": "IP rate limit exceeded"
+          },
+          "500": {
+            "description": "Controlled internal error"
+          },
+          "503": {
+            "description": "Dependency not configured or unavailable"
+          }
+        }
+      }
+    },
+    "/organizations": {
+      "post": {
+        "summary": "Create isolated organization",
+        "security": [
+          {
+            "browserSession": [],
+            "csrfToken": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "X-Organization-ID",
+            "in": "header",
+            "required": false,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            },
+            "description": "Membership-checked; defaults to first membership"
+          },
+          {
+            "name": "Origin",
+            "in": "header",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uri"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Success; JSON unless requesting CSV"
+          },
+          "201": {
+            "description": "Record/session created where applicable"
+          },
+          "400": {
+            "description": "Invalid request",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Authentication invalid/expired"
+          },
+          "403": {
+            "description": "Origin, CSRF, tenant or role rejected"
+          },
+          "404": {
+            "description": "Record not found in authorized tenant"
+          },
+          "409": {
+            "description": "Unique record already exists"
+          },
+          "413": {
+            "description": "Request larger than 512 KiB"
+          },
+          "429": {
+            "description": "IP rate limit exceeded"
+          },
+          "500": {
+            "description": "Controlled internal error"
+          },
+          "503": {
+            "description": "Dependency not configured or unavailable"
+          }
+        }
+      }
+    },
+    "/organizations/members": {
+      "get": {
+        "summary": "List organization members",
+        "security": [
+          {
+            "browserSession": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "X-Organization-ID",
+            "in": "header",
+            "required": false,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            },
+            "description": "Membership-checked; defaults to first membership"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Success; JSON unless requesting CSV"
+          },
+          "201": {
+            "description": "Record/session created where applicable"
+          },
+          "400": {
+            "description": "Invalid request",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Authentication invalid/expired"
+          },
+          "403": {
+            "description": "Origin, CSRF, tenant or role rejected"
+          },
+          "404": {
+            "description": "Record not found in authorized tenant"
+          },
+          "409": {
+            "description": "Unique record already exists"
+          },
+          "413": {
+            "description": "Request larger than 512 KiB"
+          },
+          "429": {
+            "description": "IP rate limit exceeded"
+          },
+          "500": {
+            "description": "Controlled internal error"
+          },
+          "503": {
+            "description": "Dependency not configured or unavailable"
+          }
+        }
+      },
+      "post": {
+        "summary": "Add an existing user (Owner/Admin)",
+        "security": [
+          {
+            "browserSession": [],
+            "csrfToken": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "X-Organization-ID",
+            "in": "header",
+            "required": false,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            },
+            "description": "Membership-checked; defaults to first membership"
+          },
+          {
+            "name": "Origin",
+            "in": "header",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uri"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Success; JSON unless requesting CSV"
+          },
+          "201": {
+            "description": "Record/session created where applicable"
+          },
+          "400": {
+            "description": "Invalid request",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Authentication invalid/expired"
+          },
+          "403": {
+            "description": "Origin, CSRF, tenant or role rejected"
+          },
+          "404": {
+            "description": "Record not found in authorized tenant"
+          },
+          "409": {
+            "description": "Unique record already exists"
+          },
+          "413": {
+            "description": "Request larger than 512 KiB"
+          },
+          "429": {
+            "description": "IP rate limit exceeded"
+          },
+          "500": {
+            "description": "Controlled internal error"
+          },
+          "503": {
+            "description": "Dependency not configured or unavailable"
+          }
+        }
+      }
+    },
+    "/devices": {
+      "get": {
+        "summary": "List organization devices",
+        "security": [
+          {
+            "browserSession": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "X-Organization-ID",
+            "in": "header",
+            "required": false,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            },
+            "description": "Membership-checked; defaults to first membership"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Success; JSON unless requesting CSV"
+          },
+          "201": {
+            "description": "Record/session created where applicable"
+          },
+          "400": {
+            "description": "Invalid request",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Authentication invalid/expired"
+          },
+          "403": {
+            "description": "Origin, CSRF, tenant or role rejected"
+          },
+          "404": {
+            "description": "Record not found in authorized tenant"
+          },
+          "409": {
+            "description": "Unique record already exists"
+          },
+          "413": {
+            "description": "Request larger than 512 KiB"
+          },
+          "429": {
+            "description": "IP rate limit exceeded"
+          },
+          "500": {
+            "description": "Controlled internal error"
+          },
+          "503": {
+            "description": "Dependency not configured or unavailable"
+          }
+        }
+      }
+    },
+    "/devices/enrollment-token": {
+      "post": {
+        "summary": "Issue one-use token (Owner/Admin)",
+        "security": [
+          {
+            "browserSession": [],
+            "csrfToken": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "X-Organization-ID",
+            "in": "header",
+            "required": false,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            },
+            "description": "Membership-checked; defaults to first membership"
+          },
+          {
+            "name": "Origin",
+            "in": "header",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uri"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Success; JSON unless requesting CSV"
+          },
+          "201": {
+            "description": "Record/session created where applicable"
+          },
+          "400": {
+            "description": "Invalid request",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Authentication invalid/expired"
+          },
+          "403": {
+            "description": "Origin, CSRF, tenant or role rejected"
+          },
+          "404": {
+            "description": "Record not found in authorized tenant"
+          },
+          "409": {
+            "description": "Unique record already exists"
+          },
+          "413": {
+            "description": "Request larger than 512 KiB"
+          },
+          "429": {
+            "description": "IP rate limit exceeded"
+          },
+          "500": {
+            "description": "Controlled internal error"
+          },
+          "503": {
+            "description": "Dependency not configured or unavailable"
+          }
+        }
+      }
+    },
+    "/devices/{id}": {
+      "get": {
+        "summary": "Get device",
+        "security": [
+          {
+            "browserSession": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          },
+          {
+            "name": "X-Organization-ID",
+            "in": "header",
+            "required": false,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            },
+            "description": "Membership-checked; defaults to first membership"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Success; JSON unless requesting CSV"
+          },
+          "201": {
+            "description": "Record/session created where applicable"
+          },
+          "400": {
+            "description": "Invalid request",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Authentication invalid/expired"
+          },
+          "403": {
+            "description": "Origin, CSRF, tenant or role rejected"
+          },
+          "404": {
+            "description": "Record not found in authorized tenant"
+          },
+          "409": {
+            "description": "Unique record already exists"
+          },
+          "413": {
+            "description": "Request larger than 512 KiB"
+          },
+          "429": {
+            "description": "IP rate limit exceeded"
+          },
+          "500": {
+            "description": "Controlled internal error"
+          },
+          "503": {
+            "description": "Dependency not configured or unavailable"
+          }
+        }
+      },
+      "patch": {
+        "summary": "Update tags/event policy (Owner/Admin)",
+        "security": [
+          {
+            "browserSession": [],
+            "csrfToken": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          },
+          {
+            "name": "X-Organization-ID",
+            "in": "header",
+            "required": false,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            },
+            "description": "Membership-checked; defaults to first membership"
+          },
+          {
+            "name": "Origin",
+            "in": "header",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uri"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Success; JSON unless requesting CSV"
+          },
+          "201": {
+            "description": "Record/session created where applicable"
+          },
+          "400": {
+            "description": "Invalid request",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Authentication invalid/expired"
+          },
+          "403": {
+            "description": "Origin, CSRF, tenant or role rejected"
+          },
+          "404": {
+            "description": "Record not found in authorized tenant"
+          },
+          "409": {
+            "description": "Unique record already exists"
+          },
+          "413": {
+            "description": "Request larger than 512 KiB"
+          },
+          "429": {
+            "description": "IP rate limit exceeded"
+          },
+          "500": {
+            "description": "Controlled internal error"
+          },
+          "503": {
+            "description": "Dependency not configured or unavailable"
+          }
+        }
+      },
+      "delete": {
+        "summary": "Deactivate and revoke device (Owner/Admin)",
+        "security": [
+          {
+            "browserSession": [],
+            "csrfToken": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          },
+          {
+            "name": "X-Organization-ID",
+            "in": "header",
+            "required": false,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            },
+            "description": "Membership-checked; defaults to first membership"
+          },
+          {
+            "name": "Origin",
+            "in": "header",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uri"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Success; JSON unless requesting CSV"
+          },
+          "201": {
+            "description": "Record/session created where applicable"
+          },
+          "400": {
+            "description": "Invalid request",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Authentication invalid/expired"
+          },
+          "403": {
+            "description": "Origin, CSRF, tenant or role rejected"
+          },
+          "404": {
+            "description": "Record not found in authorized tenant"
+          },
+          "409": {
+            "description": "Unique record already exists"
+          },
+          "413": {
+            "description": "Request larger than 512 KiB"
+          },
+          "429": {
+            "description": "IP rate limit exceeded"
+          },
+          "500": {
+            "description": "Controlled internal error"
+          },
+          "503": {
+            "description": "Dependency not configured or unavailable"
+          }
+        }
+      }
+    },
+    "/agent/enroll": {
+      "post": {
+        "summary": "Consume enrollment token",
+        "security": [],
+        "parameters": [],
+        "responses": {
+          "200": {
+            "description": "Success; JSON unless requesting CSV"
+          },
+          "201": {
+            "description": "Record/session created where applicable"
+          },
+          "400": {
+            "description": "Invalid request",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Authentication invalid/expired"
+          },
+          "403": {
+            "description": "Origin, CSRF, tenant or role rejected"
+          },
+          "404": {
+            "description": "Record not found in authorized tenant"
+          },
+          "409": {
+            "description": "Unique record already exists"
+          },
+          "413": {
+            "description": "Request larger than 512 KiB"
+          },
+          "429": {
+            "description": "IP rate limit exceeded"
+          },
+          "500": {
+            "description": "Controlled internal error"
+          },
+          "503": {
+            "description": "Dependency not configured or unavailable"
+          }
+        },
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/Enroll"
+              }
+            }
+          }
+        }
+      }
+    },
+    "/agent/heartbeat": {
+      "post": {
+        "summary": "Heartbeat and latest policy",
+        "security": [
+          {
+            "deviceBearer": []
+          }
+        ],
+        "parameters": [],
+        "responses": {
+          "200": {
+            "description": "Success; JSON unless requesting CSV"
+          },
+          "201": {
+            "description": "Record/session created where applicable"
+          },
+          "400": {
+            "description": "Invalid request",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Authentication invalid/expired"
+          },
+          "403": {
+            "description": "Origin, CSRF, tenant or role rejected"
+          },
+          "404": {
+            "description": "Record not found in authorized tenant"
+          },
+          "409": {
+            "description": "Unique record already exists"
+          },
+          "413": {
+            "description": "Request larger than 512 KiB"
+          },
+          "429": {
+            "description": "IP rate limit exceeded"
+          },
+          "500": {
+            "description": "Controlled internal error"
+          },
+          "503": {
+            "description": "Dependency not configured or unavailable"
+          }
+        },
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/Heartbeat"
+              }
+            }
+          }
+        }
+      }
+    },
+    "/agent/events": {
+      "post": {
+        "summary": "Validate, store and evaluate a batch",
+        "security": [
+          {
+            "deviceBearer": []
+          }
+        ],
+        "parameters": [],
+        "responses": {
+          "200": {
+            "description": "Success; JSON unless requesting CSV"
+          },
+          "201": {
+            "description": "Record/session created where applicable"
+          },
+          "400": {
+            "description": "Invalid request",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Authentication invalid/expired"
+          },
+          "403": {
+            "description": "Origin, CSRF, tenant or role rejected"
+          },
+          "404": {
+            "description": "Record not found in authorized tenant"
+          },
+          "409": {
+            "description": "Unique record already exists"
+          },
+          "413": {
+            "description": "Request larger than 512 KiB"
+          },
+          "429": {
+            "description": "IP rate limit exceeded"
+          },
+          "500": {
+            "description": "Controlled internal error"
+          },
+          "503": {
+            "description": "Dependency not configured or unavailable"
+          }
+        },
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/EventBatch"
+              }
+            }
+          }
+        }
+      }
+    },
+    "/agent/rotate": {
+      "post": {
+        "summary": "Rotate device credential",
+        "security": [
+          {
+            "deviceBearer": []
+          }
+        ],
+        "parameters": [],
+        "responses": {
+          "200": {
+            "description": "Success; JSON unless requesting CSV"
+          },
+          "201": {
+            "description": "Record/session created where applicable"
+          },
+          "400": {
+            "description": "Invalid request",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Authentication invalid/expired"
+          },
+          "403": {
+            "description": "Origin, CSRF, tenant or role rejected"
+          },
+          "404": {
+            "description": "Record not found in authorized tenant"
+          },
+          "409": {
+            "description": "Unique record already exists"
+          },
+          "413": {
+            "description": "Request larger than 512 KiB"
+          },
+          "429": {
+            "description": "IP rate limit exceeded"
+          },
+          "500": {
+            "description": "Controlled internal error"
+          },
+          "503": {
+            "description": "Dependency not configured or unavailable"
+          }
+        }
+      }
+    },
+    "/agent/revoke": {
+      "post": {
+        "summary": "Self-revoke device and credential",
+        "security": [
+          {
+            "deviceBearer": []
+          }
+        ],
+        "parameters": [],
+        "responses": {
+          "200": {
+            "description": "Success; JSON unless requesting CSV"
+          },
+          "201": {
+            "description": "Record/session created where applicable"
+          },
+          "400": {
+            "description": "Invalid request",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Authentication invalid/expired"
+          },
+          "403": {
+            "description": "Origin, CSRF, tenant or role rejected"
+          },
+          "404": {
+            "description": "Record not found in authorized tenant"
+          },
+          "409": {
+            "description": "Unique record already exists"
+          },
+          "413": {
+            "description": "Request larger than 512 KiB"
+          },
+          "429": {
+            "description": "IP rate limit exceeded"
+          },
+          "500": {
+            "description": "Controlled internal error"
+          },
+          "503": {
+            "description": "Dependency not configured or unavailable"
+          }
+        }
+      }
+    },
+    "/events": {
+      "get": {
+        "summary": "Filter and paginate security events",
+        "security": [
+          {
+            "browserSession": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "X-Organization-ID",
+            "in": "header",
+            "required": false,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            },
+            "description": "Membership-checked; defaults to first membership"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Success; JSON unless requesting CSV"
+          },
+          "201": {
+            "description": "Record/session created where applicable"
+          },
+          "400": {
+            "description": "Invalid request",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Authentication invalid/expired"
+          },
+          "403": {
+            "description": "Origin, CSRF, tenant or role rejected"
+          },
+          "404": {
+            "description": "Record not found in authorized tenant"
+          },
+          "409": {
+            "description": "Unique record already exists"
+          },
+          "413": {
+            "description": "Request larger than 512 KiB"
+          },
+          "429": {
+            "description": "IP rate limit exceeded"
+          },
+          "500": {
+            "description": "Controlled internal error"
+          },
+          "503": {
+            "description": "Dependency not configured or unavailable"
+          }
+        }
+      }
+    },
+    "/events/export": {
+      "get": {
+        "summary": "Bounded authorized CSV/JSON export",
+        "security": [
+          {
+            "browserSession": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "X-Organization-ID",
+            "in": "header",
+            "required": false,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            },
+            "description": "Membership-checked; defaults to first membership"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Success; JSON unless requesting CSV"
+          },
+          "201": {
+            "description": "Record/session created where applicable"
+          },
+          "400": {
+            "description": "Invalid request",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Authentication invalid/expired"
+          },
+          "403": {
+            "description": "Origin, CSRF, tenant or role rejected"
+          },
+          "404": {
+            "description": "Record not found in authorized tenant"
+          },
+          "409": {
+            "description": "Unique record already exists"
+          },
+          "413": {
+            "description": "Request larger than 512 KiB"
+          },
+          "429": {
+            "description": "IP rate limit exceeded"
+          },
+          "500": {
+            "description": "Controlled internal error"
+          },
+          "503": {
+            "description": "Dependency not configured or unavailable"
+          }
+        }
+      }
+    },
+    "/events/{id}": {
+      "get": {
+        "summary": "Get normalized event",
+        "security": [
+          {
+            "browserSession": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          },
+          {
+            "name": "X-Organization-ID",
+            "in": "header",
+            "required": false,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            },
+            "description": "Membership-checked; defaults to first membership"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Success; JSON unless requesting CSV"
+          },
+          "201": {
+            "description": "Record/session created where applicable"
+          },
+          "400": {
+            "description": "Invalid request",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Authentication invalid/expired"
+          },
+          "403": {
+            "description": "Origin, CSRF, tenant or role rejected"
+          },
+          "404": {
+            "description": "Record not found in authorized tenant"
+          },
+          "409": {
+            "description": "Unique record already exists"
+          },
+          "413": {
+            "description": "Request larger than 512 KiB"
+          },
+          "429": {
+            "description": "IP rate limit exceeded"
+          },
+          "500": {
+            "description": "Controlled internal error"
+          },
+          "503": {
+            "description": "Dependency not configured or unavailable"
+          }
+        }
+      }
+    },
+    "/alerts": {
+      "get": {
+        "summary": "Filter and paginate alerts",
+        "security": [
+          {
+            "browserSession": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "X-Organization-ID",
+            "in": "header",
+            "required": false,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            },
+            "description": "Membership-checked; defaults to first membership"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Success; JSON unless requesting CSV"
+          },
+          "201": {
+            "description": "Record/session created where applicable"
+          },
+          "400": {
+            "description": "Invalid request",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Authentication invalid/expired"
+          },
+          "403": {
+            "description": "Origin, CSRF, tenant or role rejected"
+          },
+          "404": {
+            "description": "Record not found in authorized tenant"
+          },
+          "409": {
+            "description": "Unique record already exists"
+          },
+          "413": {
+            "description": "Request larger than 512 KiB"
+          },
+          "429": {
+            "description": "IP rate limit exceeded"
+          },
+          "500": {
+            "description": "Controlled internal error"
+          },
+          "503": {
+            "description": "Dependency not configured or unavailable"
+          }
+        }
+      }
+    },
+    "/alerts/{id}": {
+      "get": {
+        "summary": "Get detection and supporting events",
+        "security": [
+          {
+            "browserSession": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          },
+          {
+            "name": "X-Organization-ID",
+            "in": "header",
+            "required": false,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            },
+            "description": "Membership-checked; defaults to first membership"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Success; JSON unless requesting CSV"
+          },
+          "201": {
+            "description": "Record/session created where applicable"
+          },
+          "400": {
+            "description": "Invalid request",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Authentication invalid/expired"
+          },
+          "403": {
+            "description": "Origin, CSRF, tenant or role rejected"
+          },
+          "404": {
+            "description": "Record not found in authorized tenant"
+          },
+          "409": {
+            "description": "Unique record already exists"
+          },
+          "413": {
+            "description": "Request larger than 512 KiB"
+          },
+          "429": {
+            "description": "IP rate limit exceeded"
+          },
+          "500": {
+            "description": "Controlled internal error"
+          },
+          "503": {
+            "description": "Dependency not configured or unavailable"
+          }
+        }
+      },
+      "patch": {
+        "summary": "Acknowledge alert (Analyst+)",
+        "security": [
+          {
+            "browserSession": [],
+            "csrfToken": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          },
+          {
+            "name": "X-Organization-ID",
+            "in": "header",
+            "required": false,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            },
+            "description": "Membership-checked; defaults to first membership"
+          },
+          {
+            "name": "Origin",
+            "in": "header",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uri"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Success; JSON unless requesting CSV"
+          },
+          "201": {
+            "description": "Record/session created where applicable"
+          },
+          "400": {
+            "description": "Invalid request",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Authentication invalid/expired"
+          },
+          "403": {
+            "description": "Origin, CSRF, tenant or role rejected"
+          },
+          "404": {
+            "description": "Record not found in authorized tenant"
+          },
+          "409": {
+            "description": "Unique record already exists"
+          },
+          "413": {
+            "description": "Request larger than 512 KiB"
+          },
+          "429": {
+            "description": "IP rate limit exceeded"
+          },
+          "500": {
+            "description": "Controlled internal error"
+          },
+          "503": {
+            "description": "Dependency not configured or unavailable"
+          }
+        }
+      }
+    },
+    "/rules": {
+      "get": {
+        "summary": "List definitions and organization policy",
+        "security": [
+          {
+            "browserSession": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "X-Organization-ID",
+            "in": "header",
+            "required": false,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            },
+            "description": "Membership-checked; defaults to first membership"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Success; JSON unless requesting CSV"
+          },
+          "201": {
+            "description": "Record/session created where applicable"
+          },
+          "400": {
+            "description": "Invalid request",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Authentication invalid/expired"
+          },
+          "403": {
+            "description": "Origin, CSRF, tenant or role rejected"
+          },
+          "404": {
+            "description": "Record not found in authorized tenant"
+          },
+          "409": {
+            "description": "Unique record already exists"
+          },
+          "413": {
+            "description": "Request larger than 512 KiB"
+          },
+          "429": {
+            "description": "IP rate limit exceeded"
+          },
+          "500": {
+            "description": "Controlled internal error"
+          },
+          "503": {
+            "description": "Dependency not configured or unavailable"
+          }
+        }
+      }
+    },
+    "/rules/{ruleId}": {
+      "patch": {
+        "summary": "Replace rule policy (Owner/Admin)",
+        "security": [
+          {
+            "browserSession": [],
+            "csrfToken": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "ruleId",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "X-Organization-ID",
+            "in": "header",
+            "required": false,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            },
+            "description": "Membership-checked; defaults to first membership"
+          },
+          {
+            "name": "Origin",
+            "in": "header",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uri"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Success; JSON unless requesting CSV"
+          },
+          "201": {
+            "description": "Record/session created where applicable"
+          },
+          "400": {
+            "description": "Invalid request",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Authentication invalid/expired"
+          },
+          "403": {
+            "description": "Origin, CSRF, tenant or role rejected"
+          },
+          "404": {
+            "description": "Record not found in authorized tenant"
+          },
+          "409": {
+            "description": "Unique record already exists"
+          },
+          "413": {
+            "description": "Request larger than 512 KiB"
+          },
+          "429": {
+            "description": "IP rate limit exceeded"
+          },
+          "500": {
+            "description": "Controlled internal error"
+          },
+          "503": {
+            "description": "Dependency not configured or unavailable"
+          }
+        },
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/Policy"
+              }
+            }
+          }
+        }
+      }
+    },
+    "/incidents": {
+      "get": {
+        "summary": "Filter and paginate incidents",
+        "security": [
+          {
+            "browserSession": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "X-Organization-ID",
+            "in": "header",
+            "required": false,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            },
+            "description": "Membership-checked; defaults to first membership"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Success; JSON unless requesting CSV"
+          },
+          "201": {
+            "description": "Record/session created where applicable"
+          },
+          "400": {
+            "description": "Invalid request",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Authentication invalid/expired"
+          },
+          "403": {
+            "description": "Origin, CSRF, tenant or role rejected"
+          },
+          "404": {
+            "description": "Record not found in authorized tenant"
+          },
+          "409": {
+            "description": "Unique record already exists"
+          },
+          "413": {
+            "description": "Request larger than 512 KiB"
+          },
+          "429": {
+            "description": "IP rate limit exceeded"
+          },
+          "500": {
+            "description": "Controlled internal error"
+          },
+          "503": {
+            "description": "Dependency not configured or unavailable"
+          }
+        }
+      },
+      "post": {
+        "summary": "Create incident from alert (Analyst+)",
+        "security": [
+          {
+            "browserSession": [],
+            "csrfToken": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "X-Organization-ID",
+            "in": "header",
+            "required": false,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            },
+            "description": "Membership-checked; defaults to first membership"
+          },
+          {
+            "name": "Origin",
+            "in": "header",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uri"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Success; JSON unless requesting CSV"
+          },
+          "201": {
+            "description": "Record/session created where applicable"
+          },
+          "400": {
+            "description": "Invalid request",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Authentication invalid/expired"
+          },
+          "403": {
+            "description": "Origin, CSRF, tenant or role rejected"
+          },
+          "404": {
+            "description": "Record not found in authorized tenant"
+          },
+          "409": {
+            "description": "Unique record already exists"
+          },
+          "413": {
+            "description": "Request larger than 512 KiB"
+          },
+          "429": {
+            "description": "IP rate limit exceeded"
+          },
+          "500": {
+            "description": "Controlled internal error"
+          },
+          "503": {
+            "description": "Dependency not configured or unavailable"
+          }
+        },
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/IncidentCreate"
+              }
+            }
+          }
+        }
+      }
+    },
+    "/incidents/{id}": {
+      "get": {
+        "summary": "Get evidence, notes and findings",
+        "security": [
+          {
+            "browserSession": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          },
+          {
+            "name": "X-Organization-ID",
+            "in": "header",
+            "required": false,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            },
+            "description": "Membership-checked; defaults to first membership"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Success; JSON unless requesting CSV"
+          },
+          "201": {
+            "description": "Record/session created where applicable"
+          },
+          "400": {
+            "description": "Invalid request",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Authentication invalid/expired"
+          },
+          "403": {
+            "description": "Origin, CSRF, tenant or role rejected"
+          },
+          "404": {
+            "description": "Record not found in authorized tenant"
+          },
+          "409": {
+            "description": "Unique record already exists"
+          },
+          "413": {
+            "description": "Request larger than 512 KiB"
+          },
+          "429": {
+            "description": "IP rate limit exceeded"
+          },
+          "500": {
+            "description": "Controlled internal error"
+          },
+          "503": {
+            "description": "Dependency not configured or unavailable"
+          }
+        }
+      },
+      "patch": {
+        "summary": "Change lifecycle/assignment (Analyst+)",
+        "security": [
+          {
+            "browserSession": [],
+            "csrfToken": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          },
+          {
+            "name": "X-Organization-ID",
+            "in": "header",
+            "required": false,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            },
+            "description": "Membership-checked; defaults to first membership"
+          },
+          {
+            "name": "Origin",
+            "in": "header",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uri"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Success; JSON unless requesting CSV"
+          },
+          "201": {
+            "description": "Record/session created where applicable"
+          },
+          "400": {
+            "description": "Invalid request",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Authentication invalid/expired"
+          },
+          "403": {
+            "description": "Origin, CSRF, tenant or role rejected"
+          },
+          "404": {
+            "description": "Record not found in authorized tenant"
+          },
+          "409": {
+            "description": "Unique record already exists"
+          },
+          "413": {
+            "description": "Request larger than 512 KiB"
+          },
+          "429": {
+            "description": "IP rate limit exceeded"
+          },
+          "500": {
+            "description": "Controlled internal error"
+          },
+          "503": {
+            "description": "Dependency not configured or unavailable"
+          }
+        },
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/IncidentUpdate"
+              }
+            }
+          }
+        }
+      }
+    },
+    "/incidents/{id}/comments": {
+      "post": {
+        "summary": "Add investigation note (Analyst+)",
+        "security": [
+          {
+            "browserSession": [],
+            "csrfToken": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          },
+          {
+            "name": "X-Organization-ID",
+            "in": "header",
+            "required": false,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            },
+            "description": "Membership-checked; defaults to first membership"
+          },
+          {
+            "name": "Origin",
+            "in": "header",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uri"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Success; JSON unless requesting CSV"
+          },
+          "201": {
+            "description": "Record/session created where applicable"
+          },
+          "400": {
+            "description": "Invalid request",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Authentication invalid/expired"
+          },
+          "403": {
+            "description": "Origin, CSRF, tenant or role rejected"
+          },
+          "404": {
+            "description": "Record not found in authorized tenant"
+          },
+          "409": {
+            "description": "Unique record already exists"
+          },
+          "413": {
+            "description": "Request larger than 512 KiB"
+          },
+          "429": {
+            "description": "IP rate limit exceeded"
+          },
+          "500": {
+            "description": "Controlled internal error"
+          },
+          "503": {
+            "description": "Dependency not configured or unavailable"
+          }
+        }
+      }
+    },
+    "/incidents/{id}/events": {
+      "post": {
+        "summary": "Attach authorized event IDs (Analyst+)",
+        "security": [
+          {
+            "browserSession": [],
+            "csrfToken": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          },
+          {
+            "name": "X-Organization-ID",
+            "in": "header",
+            "required": false,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            },
+            "description": "Membership-checked; defaults to first membership"
+          },
+          {
+            "name": "Origin",
+            "in": "header",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uri"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Success; JSON unless requesting CSV"
+          },
+          "201": {
+            "description": "Record/session created where applicable"
+          },
+          "400": {
+            "description": "Invalid request",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Authentication invalid/expired"
+          },
+          "403": {
+            "description": "Origin, CSRF, tenant or role rejected"
+          },
+          "404": {
+            "description": "Record not found in authorized tenant"
+          },
+          "409": {
+            "description": "Unique record already exists"
+          },
+          "413": {
+            "description": "Request larger than 512 KiB"
+          },
+          "429": {
+            "description": "IP rate limit exceeded"
+          },
+          "500": {
+            "description": "Controlled internal error"
+          },
+          "503": {
+            "description": "Dependency not configured or unavailable"
+          }
+        }
+      }
+    },
+    "/incidents/{id}/recommendations": {
+      "post": {
+        "summary": "Save advisory-only response (Analyst+)",
+        "security": [
+          {
+            "browserSession": [],
+            "csrfToken": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          },
+          {
+            "name": "X-Organization-ID",
+            "in": "header",
+            "required": false,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            },
+            "description": "Membership-checked; defaults to first membership"
+          },
+          {
+            "name": "Origin",
+            "in": "header",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uri"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Success; JSON unless requesting CSV"
+          },
+          "201": {
+            "description": "Record/session created where applicable"
+          },
+          "400": {
+            "description": "Invalid request",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Authentication invalid/expired"
+          },
+          "403": {
+            "description": "Origin, CSRF, tenant or role rejected"
+          },
+          "404": {
+            "description": "Record not found in authorized tenant"
+          },
+          "409": {
+            "description": "Unique record already exists"
+          },
+          "413": {
+            "description": "Request larger than 512 KiB"
+          },
+          "429": {
+            "description": "IP rate limit exceeded"
+          },
+          "500": {
+            "description": "Controlled internal error"
+          },
+          "503": {
+            "description": "Dependency not configured or unavailable"
+          }
+        }
+      }
+    },
+    "/ai/investigate": {
+      "post": {
+        "summary": "Investigate an authorized incident (Analyst+)",
+        "security": [
+          {
+            "browserSession": [],
+            "csrfToken": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "X-Organization-ID",
+            "in": "header",
+            "required": false,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            },
+            "description": "Membership-checked; defaults to first membership"
+          },
+          {
+            "name": "Origin",
+            "in": "header",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uri"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Success; JSON unless requesting CSV"
+          },
+          "201": {
+            "description": "Record/session created where applicable"
+          },
+          "400": {
+            "description": "Invalid request",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Authentication invalid/expired"
+          },
+          "403": {
+            "description": "Origin, CSRF, tenant or role rejected"
+          },
+          "404": {
+            "description": "Record not found in authorized tenant"
+          },
+          "409": {
+            "description": "Unique record already exists"
+          },
+          "413": {
+            "description": "Request larger than 512 KiB"
+          },
+          "429": {
+            "description": "IP rate limit exceeded"
+          },
+          "500": {
+            "description": "Controlled internal error"
+          },
+          "503": {
+            "description": "Dependency not configured or unavailable"
+          }
+        }
+      }
+    },
+    "/ai/investigations/{id}": {
+      "get": {
+        "summary": "Get authorized saved investigation",
+        "security": [
+          {
+            "browserSession": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          },
+          {
+            "name": "X-Organization-ID",
+            "in": "header",
+            "required": false,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            },
+            "description": "Membership-checked; defaults to first membership"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Success; JSON unless requesting CSV"
+          },
+          "201": {
+            "description": "Record/session created where applicable"
+          },
+          "400": {
+            "description": "Invalid request",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Authentication invalid/expired"
+          },
+          "403": {
+            "description": "Origin, CSRF, tenant or role rejected"
+          },
+          "404": {
+            "description": "Record not found in authorized tenant"
+          },
+          "409": {
+            "description": "Unique record already exists"
+          },
+          "413": {
+            "description": "Request larger than 512 KiB"
+          },
+          "429": {
+            "description": "IP rate limit exceeded"
+          },
+          "500": {
+            "description": "Controlled internal error"
+          },
+          "503": {
+            "description": "Dependency not configured or unavailable"
+          }
+        }
+      }
+    },
+    "/dashboard/overview": {
+      "get": {
+        "summary": "Database-driven present state and UTC-day metrics",
+        "security": [
+          {
+            "browserSession": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "X-Organization-ID",
+            "in": "header",
+            "required": false,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            },
+            "description": "Membership-checked; defaults to first membership"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Success; JSON unless requesting CSV"
+          },
+          "201": {
+            "description": "Record/session created where applicable"
+          },
+          "400": {
+            "description": "Invalid request",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Authentication invalid/expired"
+          },
+          "403": {
+            "description": "Origin, CSRF, tenant or role rejected"
+          },
+          "404": {
+            "description": "Record not found in authorized tenant"
+          },
+          "409": {
+            "description": "Unique record already exists"
+          },
+          "413": {
+            "description": "Request larger than 512 KiB"
+          },
+          "429": {
+            "description": "IP rate limit exceeded"
+          },
+          "500": {
+            "description": "Controlled internal error"
+          },
+          "503": {
+            "description": "Dependency not configured or unavailable"
+          }
+        }
+      }
+    },
+    "/dashboard/trends": {
+      "get": {
+        "summary": "24-hour database event/failure trend",
+        "security": [
+          {
+            "browserSession": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "X-Organization-ID",
+            "in": "header",
+            "required": false,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            },
+            "description": "Membership-checked; defaults to first membership"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Success; JSON unless requesting CSV"
+          },
+          "201": {
+            "description": "Record/session created where applicable"
+          },
+          "400": {
+            "description": "Invalid request",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Authentication invalid/expired"
+          },
+          "403": {
+            "description": "Origin, CSRF, tenant or role rejected"
+          },
+          "404": {
+            "description": "Record not found in authorized tenant"
+          },
+          "409": {
+            "description": "Unique record already exists"
+          },
+          "413": {
+            "description": "Request larger than 512 KiB"
+          },
+          "429": {
+            "description": "IP rate limit exceeded"
+          },
+          "500": {
+            "description": "Controlled internal error"
+          },
+          "503": {
+            "description": "Dependency not configured or unavailable"
+          }
+        }
+      }
+    },
+    "/notifications": {
+      "get": {
+        "summary": "Latest notifications and own read state",
+        "security": [
+          {
+            "browserSession": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "X-Organization-ID",
+            "in": "header",
+            "required": false,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            },
+            "description": "Membership-checked; defaults to first membership"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Success; JSON unless requesting CSV"
+          },
+          "201": {
+            "description": "Record/session created where applicable"
+          },
+          "400": {
+            "description": "Invalid request",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Authentication invalid/expired"
+          },
+          "403": {
+            "description": "Origin, CSRF, tenant or role rejected"
+          },
+          "404": {
+            "description": "Record not found in authorized tenant"
+          },
+          "409": {
+            "description": "Unique record already exists"
+          },
+          "413": {
+            "description": "Request larger than 512 KiB"
+          },
+          "429": {
+            "description": "IP rate limit exceeded"
+          },
+          "500": {
+            "description": "Controlled internal error"
+          },
+          "503": {
+            "description": "Dependency not configured or unavailable"
+          }
+        }
+      }
+    },
+    "/notifications/{id}": {
+      "patch": {
+        "summary": "Mark notification read",
+        "security": [
+          {
+            "browserSession": [],
+            "csrfToken": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          },
+          {
+            "name": "X-Organization-ID",
+            "in": "header",
+            "required": false,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            },
+            "description": "Membership-checked; defaults to first membership"
+          },
+          {
+            "name": "Origin",
+            "in": "header",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uri"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Success; JSON unless requesting CSV"
+          },
+          "201": {
+            "description": "Record/session created where applicable"
+          },
+          "400": {
+            "description": "Invalid request",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Authentication invalid/expired"
+          },
+          "403": {
+            "description": "Origin, CSRF, tenant or role rejected"
+          },
+          "404": {
+            "description": "Record not found in authorized tenant"
+          },
+          "409": {
+            "description": "Unique record already exists"
+          },
+          "413": {
+            "description": "Request larger than 512 KiB"
+          },
+          "429": {
+            "description": "IP rate limit exceeded"
+          },
+          "500": {
+            "description": "Controlled internal error"
+          },
+          "503": {
+            "description": "Dependency not configured or unavailable"
+          }
+        }
+      }
+    },
+    "/settings": {
+      "get": {
+        "summary": "Organization retention/AI settings",
+        "security": [
+          {
+            "browserSession": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "X-Organization-ID",
+            "in": "header",
+            "required": false,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            },
+            "description": "Membership-checked; defaults to first membership"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Success; JSON unless requesting CSV"
+          },
+          "201": {
+            "description": "Record/session created where applicable"
+          },
+          "400": {
+            "description": "Invalid request",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Authentication invalid/expired"
+          },
+          "403": {
+            "description": "Origin, CSRF, tenant or role rejected"
+          },
+          "404": {
+            "description": "Record not found in authorized tenant"
+          },
+          "409": {
+            "description": "Unique record already exists"
+          },
+          "413": {
+            "description": "Request larger than 512 KiB"
+          },
+          "429": {
+            "description": "IP rate limit exceeded"
+          },
+          "500": {
+            "description": "Controlled internal error"
+          },
+          "503": {
+            "description": "Dependency not configured or unavailable"
+          }
+        }
+      },
+      "patch": {
+        "summary": "Change retention/AI settings (Owner/Admin)",
+        "security": [
+          {
+            "browserSession": [],
+            "csrfToken": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "X-Organization-ID",
+            "in": "header",
+            "required": false,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            },
+            "description": "Membership-checked; defaults to first membership"
+          },
+          {
+            "name": "Origin",
+            "in": "header",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uri"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Success; JSON unless requesting CSV"
+          },
+          "201": {
+            "description": "Record/session created where applicable"
+          },
+          "400": {
+            "description": "Invalid request",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Authentication invalid/expired"
+          },
+          "403": {
+            "description": "Origin, CSRF, tenant or role rejected"
+          },
+          "404": {
+            "description": "Record not found in authorized tenant"
+          },
+          "409": {
+            "description": "Unique record already exists"
+          },
+          "413": {
+            "description": "Request larger than 512 KiB"
+          },
+          "429": {
+            "description": "IP rate limit exceeded"
+          },
+          "500": {
+            "description": "Controlled internal error"
+          },
+          "503": {
+            "description": "Dependency not configured or unavailable"
+          }
+        },
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/Settings"
+              }
+            }
+          }
+        }
+      }
+    },
+    "/audit": {
+      "get": {
+        "summary": "Paginated audit activity (Owner/Admin)",
+        "security": [
+          {
+            "browserSession": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "X-Organization-ID",
+            "in": "header",
+            "required": false,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            },
+            "description": "Membership-checked; defaults to first membership"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Success; JSON unless requesting CSV"
+          },
+          "201": {
+            "description": "Record/session created where applicable"
+          },
+          "400": {
+            "description": "Invalid request",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Authentication invalid/expired"
+          },
+          "403": {
+            "description": "Origin, CSRF, tenant or role rejected"
+          },
+          "404": {
+            "description": "Record not found in authorized tenant"
+          },
+          "409": {
+            "description": "Unique record already exists"
+          },
+          "413": {
+            "description": "Request larger than 512 KiB"
+          },
+          "429": {
+            "description": "IP rate limit exceeded"
+          },
+          "500": {
+            "description": "Controlled internal error"
+          },
+          "503": {
+            "description": "Dependency not configured or unavailable"
+          }
+        }
+      }
+    },
+    "/reports": {
+      "get": {
+        "summary": "List recent saved summaries",
+        "security": [
+          {
+            "browserSession": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "X-Organization-ID",
+            "in": "header",
+            "required": false,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            },
+            "description": "Membership-checked; defaults to first membership"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Success; JSON unless requesting CSV"
+          },
+          "201": {
+            "description": "Record/session created where applicable"
+          },
+          "400": {
+            "description": "Invalid request",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Authentication invalid/expired"
+          },
+          "403": {
+            "description": "Origin, CSRF, tenant or role rejected"
+          },
+          "404": {
+            "description": "Record not found in authorized tenant"
+          },
+          "409": {
+            "description": "Unique record already exists"
+          },
+          "413": {
+            "description": "Request larger than 512 KiB"
+          },
+          "429": {
+            "description": "IP rate limit exceeded"
+          },
+          "500": {
+            "description": "Controlled internal error"
+          },
+          "503": {
+            "description": "Dependency not configured or unavailable"
+          }
+        }
+      }
+    },
+    "/reports/generate": {
+      "post": {
+        "summary": "Capture security summary (Analyst+)",
+        "security": [
+          {
+            "browserSession": [],
+            "csrfToken": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "X-Organization-ID",
+            "in": "header",
+            "required": false,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            },
+            "description": "Membership-checked; defaults to first membership"
+          },
+          {
+            "name": "Origin",
+            "in": "header",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uri"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Success; JSON unless requesting CSV"
+          },
+          "201": {
+            "description": "Record/session created where applicable"
+          },
+          "400": {
+            "description": "Invalid request",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Authentication invalid/expired"
+          },
+          "403": {
+            "description": "Origin, CSRF, tenant or role rejected"
+          },
+          "404": {
+            "description": "Record not found in authorized tenant"
+          },
+          "409": {
+            "description": "Unique record already exists"
+          },
+          "413": {
+            "description": "Request larger than 512 KiB"
+          },
+          "429": {
+            "description": "IP rate limit exceeded"
+          },
+          "500": {
+            "description": "Controlled internal error"
+          },
+          "503": {
+            "description": "Dependency not configured or unavailable"
+          }
+        }
+      }
+    },
+    "/reports/{id}/export": {
+      "get": {
+        "summary": "Export authorized JSON report",
+        "security": [
+          {
+            "browserSession": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          },
+          {
+            "name": "X-Organization-ID",
+            "in": "header",
+            "required": false,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            },
+            "description": "Membership-checked; defaults to first membership"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Success; JSON unless requesting CSV"
+          },
+          "201": {
+            "description": "Record/session created where applicable"
+          },
+          "400": {
+            "description": "Invalid request",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Authentication invalid/expired"
+          },
+          "403": {
+            "description": "Origin, CSRF, tenant or role rejected"
+          },
+          "404": {
+            "description": "Record not found in authorized tenant"
+          },
+          "409": {
+            "description": "Unique record already exists"
+          },
+          "413": {
+            "description": "Request larger than 512 KiB"
+          },
+          "429": {
+            "description": "IP rate limit exceeded"
+          },
+          "500": {
+            "description": "Controlled internal error"
+          },
+          "503": {
+            "description": "Dependency not configured or unavailable"
+          }
+        }
+      }
+    }
+  }
+}

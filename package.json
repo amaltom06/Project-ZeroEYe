@@ -1,0 +1,40 @@
+{
+  "name": "zeroeye",
+  "private": true,
+  "version": "0.1.0",
+  "workspaces": [
+    "apps/api",
+    "apps/web",
+    "packages/shared-types",
+    "packages/detection-rules"
+  ],
+  "engines": {
+    "node": ">=24.13.0"
+  },
+  "scripts": {
+    "dev": "node scripts/dev.mjs",
+    "build": "npm run build --workspace @zeroeye/api && npm run build --workspace @zeroeye/web",
+    "typecheck": "npm run typecheck --workspaces --if-present",
+    "test": "npm run test --workspace @zeroeye/detection-rules && npm run test --workspace @zeroeye/api && npm run test --workspace @zeroeye/web",
+    "db:generate": "npm run db:generate --workspace @zeroeye/api",
+    "db:migrate": "npm run db:migrate --workspace @zeroeye/api",
+    "test:integration": "node scripts/integration.mjs",
+    "db:local": "node scripts/local-db.mjs",
+    "demo": "node scripts/demo.mjs",
+    "demo:live": "powershell -NoProfile -File scripts/demo-live.ps1",
+    "ai:dev": "node scripts/ai-service.mjs",
+    "retention": "node --import tsx scripts/retention.ts",
+    "agent:build": "node scripts/build-agent.mjs"
+  },
+  "devDependencies": {
+    "embedded-postgres": "^18.1.0-beta.16",
+    "dotenv": "^16.6.1",
+    "deepmerge-ts": "^8.0.0",
+    "effect": "^3.20.0"
+  },
+  "type": "module",
+  "overrides": {
+    "deepmerge-ts": "$deepmerge-ts",
+    "effect": "$effect"
+  }
+}

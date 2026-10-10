@@ -1,0 +1,260 @@
+generator client {
+ provider = "prisma-client-js"
+}
+datasource db {
+ provider = "postgresql"
+ url = env("DATABASE_URL")
+}
+model User {
+ id String @id @default(uuid())
+ email String @unique
+ name String
+ passwordHash String
+ createdAt DateTime @default(now())
+ sessions Session[]
+ memberships OrganizationMember[]
+}
+model Organization {
+ id String @id @default(uuid())
+ name String
+ demo Boolean @default(false)
+ createdAt DateTime @default(now())
+ members OrganizationMember[]
+ devices Device[]
+ tokens DeviceEnrollmentToken[]
+ rules DetectionRule[]
+ incidents Incident[]
+ notifications Notification[]
+ audits AuditLog[]
+ reports Report[]
+ settings OrganizationSettings?
+}
+model OrganizationMember {
+ id String @id @default(uuid())
+ orgId String
+ userId String
+ role String @default("VIEWER")
+ organization Organization @relation(fields:[orgId],references:[id],onDelete:Cascade)
+ user User @relation(fields:[userId],references:[id],onDelete:Cascade)
+ @@unique([orgId,userId])
+}
+model Session {
+ id String @id
+ userId String
+ csrf String
+ expiresAt DateTime
+ user User @relation(fields:[userId],references:[id],onDelete:Cascade)
+ @@index([expiresAt])
+}
+model OrganizationSettings {
+ orgId String @id
+ retentionDays Int @default(30)
+ externalAiEnabled Boolean @default(false)
+ organization Organization @relation(fields:[orgId],references:[id],onDelete:Cascade)
+}
+model DeviceEnrollmentToken {
+ id String @id @default(uuid())
+ orgId String
+ tokenHash String @unique
+ expiresAt DateTime
+ usedAt DateTime?
+ createdAt DateTime @default(now())
+ organization Organization @relation(fields:[orgId],references:[id],onDelete:Cascade)
+}
+model Device {
+ id String @id @default(uuid())
+ orgId String
+ hostname String
+ osVersion String
+ agentVersion String
+ simulated Boolean @default(false)
+ active Boolean @default(true)
+ lastHeartbeat DateTime?
+ lastEvent DateTime?
+ healthError String?
+ tags String[] @default([])
+ configVersion Int @default(1)
+ eventIds Int[] @default([4624,4625,4634,4648,4672,4688,4720,4726,4740,1102])
+ createdAt DateTime @default(now())
+ organization Organization @relation(fields:[orgId],references:[id],onDelete:Cascade)
+ credentials DeviceCredential[]
+ heartbeats AgentHeartbeat[]
+ events SecurityEvent[]
+ alerts DetectionAlert[]
+ @@unique([id,orgId])
+ @@index([orgId,lastHeartbeat])
+}
+model DeviceCredential {
+ id String @id @default(uuid())
+ deviceId String
+ tokenHash String @unique
+ revokedAt DateTime?
+ createdAt DateTime @default(now())
+ device Device @relation(fields:[deviceId],references:[id],onDelete:Cascade)
+}
+model AgentHeartbeat {
+ id String @id @default(uuid())
+ deviceId String
+ queueDepth Int
+ error String?
+ createdAt DateTime @default(now())
+ device Device @relation(fields:[deviceId],references:[id],onDelete:Cascade)
+ @@index([deviceId,createdAt])
+}
+model SecurityEvent {
+ id String @id @default(uuid())
+ orgId String
+ deviceId String
+ eventKey String
+ provider String
+ windowsEventId Int
+ category String
+ severity String @default("INFO")
+ timestamp DateTime
+ receivedAt DateTime @default(now())
+ username String?
+ sourceIp String?
+ processName String?
+ outcome String?
+ metadata Json
+ simulated Boolean @default(false)
+ device Device @relation(fields:[deviceId,orgId],references:[id,orgId],onDelete:Cascade)
+ incidentLinks IncidentEvent[]
+ @@unique([deviceId,eventKey])
+ @@unique([id,orgId])
+ @@index([orgId,timestamp])
+ @@index([orgId,deviceId,windowsEventId,timestamp])
+ @@index([orgId,sourceIp,timestamp])
+}
+model DetectionRule {
+ id String @id @default(uuid())
+ orgId String
+ ruleId String
+ policy Json
+ organization Organization @relation(fields:[orgId],references:[id],onDelete:Cascade)
+ @@unique([orgId,ruleId])
+}
+model DetectionAlert {
+ id String @id @default(uuid())
+ orgId String
+ deviceId String
+ ruleId String
+ name String
+ severity String
+ explanation String
+ description String
+ certainty String
+ eventIds String[]
+ techniques String[]
+ groupKey String
+ status String @default("OPEN")
+ simulated Boolean @default(false)
+ detectedAt DateTime @default(now())
+ eventTimestamp DateTime
+ device Device @relation(fields:[deviceId,orgId],references:[id,orgId],onDelete:Cascade)
+ incidents Incident[]
+ @@unique([id,orgId])
+ @@index([orgId,status,detectedAt])
+ @@index([deviceId,ruleId,groupKey,eventTimestamp])
+}
+model Incident {
+ id String @id @default(uuid())
+ orgId String
+ alertId String?
+ title String
+ description String
+ severity String
+ status String @default("NEW")
+ assignedTo String?
+ resolutionNotes String?
+ createdAt DateTime @default(now())
+ updatedAt DateTime @updatedAt
+ organization Organization @relation(fields:[orgId],references:[id],onDelete:Cascade)
+ alert DetectionAlert? @relation(fields:[alertId,orgId],references:[id,orgId])
+ events IncidentEvent[]
+ comments IncidentComment[]
+ investigations AIInvestigation[]
+ actions ResponseAction[]
+ @@unique([alertId,orgId])
+ @@unique([id,orgId])
+ @@index([orgId,status])
+}
+model IncidentEvent {
+ id String @id @default(uuid())
+ orgId String
+ incidentId String
+ eventId String
+ incident Incident @relation(fields:[incidentId,orgId],references:[id,orgId],onDelete:Cascade)
+ event SecurityEvent @relation(fields:[eventId,orgId],references:[id,orgId],onDelete:Cascade)
+ @@unique([incidentId,eventId])
+}
+model IncidentComment {
+ id String @id @default(uuid())
+ incidentId String
+ authorId String
+ body String
+ createdAt DateTime @default(now())
+ incident Incident @relation(fields:[incidentId],references:[id],onDelete:Cascade)
+}
+model AIInvestigation {
+ id String @id @default(uuid())
+ incidentId String
+ provider String
+ result Json
+ createdAt DateTime @default(now())
+ incident Incident @relation(fields:[incidentId],references:[id],onDelete:Cascade)
+}
+model ResponseAction {
+ id String @id @default(uuid())
+ incidentId String
+ recommendation String
+ kind String
+ status String @default("ADVISORY")
+ createdAt DateTime @default(now())
+ incident Incident @relation(fields:[incidentId],references:[id],onDelete:Cascade)
+ approvals ResponseApproval[]
+}
+model ResponseApproval {
+ id String @id @default(uuid())
+ actionId String
+ userId String
+ decision String
+ createdAt DateTime @default(now())
+ action ResponseAction @relation(fields:[actionId],references:[id],onDelete:Cascade)
+}
+model Notification {
+ id String @id @default(uuid())
+ orgId String
+ title String
+ link String
+ createdAt DateTime @default(now())
+ organization Organization @relation(fields:[orgId],references:[id],onDelete:Cascade)
+ reads NotificationRead[]
+ @@index([orgId,createdAt])
+}
+model NotificationRead {
+ notificationId String
+ userId String
+ readAt DateTime @default(now())
+ notification Notification @relation(fields:[notificationId],references:[id],onDelete:Cascade)
+ @@id([notificationId,userId])
+}
+model AuditLog {
+ id String @id @default(uuid())
+ orgId String
+ actorId String
+ action String
+ targetId String?
+ details Json
+ createdAt DateTime @default(now())
+ organization Organization @relation(fields:[orgId],references:[id],onDelete:Cascade)
+ @@index([orgId,createdAt])
+}
+model Report {
+ id String @id @default(uuid())
+ orgId String
+ kind String
+ data Json
+ createdAt DateTime @default(now())
+ organization Organization @relation(fields:[orgId],references:[id],onDelete:Cascade)
+}

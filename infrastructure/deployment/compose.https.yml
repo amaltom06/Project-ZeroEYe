@@ -1,0 +1,21 @@
+services:
+ api:
+  environment:
+   NODE_ENV: production
+   WEB_ORIGIN: https://${ZEROEYE_DOMAIN:?Set your owned domain}
+ web:
+  ports: !reset []
+ caddy:
+  image: caddy:2.10-alpine
+  ports: ["80:80", "443:443"]
+  environment:
+   ZEROEYE_DOMAIN: ${ZEROEYE_DOMAIN:?Set your owned domain}
+  volumes:
+   - ./infrastructure/deployment/Caddyfile:/etc/caddy/Caddyfile:ro
+   - caddy-data:/data
+   - caddy-config:/config
+  depends_on: [web]
+  restart: unless-stopped
+volumes:
+ caddy-data:
+ caddy-config:

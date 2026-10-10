@@ -1,0 +1,13 @@
+ZEROEYE Security Monitoring Agent
+
+Install only on computers you own or are explicitly authorized to administer.
+
+The agent runs visibly as the ZEROEYE Security Monitoring Agent Windows service. It reads selected Windows Security event logs and sends normalized fields to your chosen ZEROEYE backend over HTTPS. Native service operation uses LocalSystem and requires administrator approval.
+
+It does not capture keys or screens, read browser passwords or authentication tokens, collect personal files, change audit policy, disable security software, or execute remote commands.
+
+Command lines are excluded by default. Optional command-line collection may contain secrets; enable it only after reviewing your privacy policy.
+
+Credentials are protected with Windows machine DPAPI and an administrator/SYSTEM-only state-directory ACL. A device-specific credential is issued during enrollment; no global secret is bundled.
+
+Uninstallation stops/removes the service and attempts backend credential revocation. If offline, revoke the device from the dashboard. Local diagnostics and queued security telemetry are retained in ProgramData\ZeroEye unless you explicitly select their removal.

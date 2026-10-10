@@ -1,0 +1,66 @@
+services:
+ postgres:
+  image: postgres:18.1
+  environment:
+   POSTGRES_DB: zeroeye
+   POSTGRES_USER: zeroeye
+   POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:?Set a random POSTGRES_PASSWORD in .env}
+  volumes:
+   - postgres-data:/var/lib/postgresql
+  healthcheck:
+   test: ["CMD-SHELL", "pg_isready -U zeroeye -d zeroeye"]
+   interval: 5s
+   timeout: 3s
+   retries: 20
+ migrate:
+  build:
+   context: .
+   dockerfile: infrastructure/docker/api.Dockerfile
+   target: migrate
+  environment:
+   DATABASE_URL: postgresql://zeroeye:${POSTGRES_PASSWORD}@postgres:5432/zeroeye
+  depends_on:
+   postgres:
+    condition: service_healthy
+ api:
+  build:
+   context: .
+   dockerfile: infrastructure/docker/api.Dockerfile
+   target: runtime
+  environment:
+   NODE_ENV: ${COMPOSE_NODE_ENV:-development}
+   HOST: 0.0.0.0
+   PORT: 4000
+   WEB_ORIGIN: ${COMPOSE_WEB_ORIGIN:-http://localhost:8080}
+   DATABASE_URL: postgresql://zeroeye:${POSTGRES_PASSWORD}@postgres:5432/zeroeye
+   AI_SERVICE_URL: http://ai:8000
+   AI_SERVICE_TOKEN: ${AI_SERVICE_TOKEN:?Set AI_SERVICE_TOKEN}
+  depends_on:
+   migrate:
+    condition: service_completed_successfully
+  healthcheck:
+   test: ["CMD", "node", "-e", "fetch('http://127.0.0.1:4000/api/health').then(r=>process.exit(r.ok?0:1)).catch(()=>process.exit(1))"]
+   interval: 15s
+   timeout: 5s
+   retries: 5
+  restart: unless-stopped
+ ai:
+  build:
+   context: .
+   dockerfile: infrastructure/docker/ai.Dockerfile
+  environment:
+   AI_SERVICE_TOKEN: ${AI_SERVICE_TOKEN:?Set AI_SERVICE_TOKEN}
+   AI_PROVIDER: deterministic
+  restart: unless-stopped
+ web:
+  build:
+   context: .
+   dockerfile: infrastructure/docker/web.Dockerfile
+  ports:
+   - "127.0.0.1:8080:80"
+  depends_on:
+   api:
+    condition: service_healthy
+  restart: unless-stopped
+volumes:
+ postgres-data:

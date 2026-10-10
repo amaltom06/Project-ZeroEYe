@@ -1,0 +1,63 @@
+name: ZEROEYE verification
+on: [push, pull_request]
+permissions:
+ contents: read
+jobs:
+ test:
+  runs-on: ubuntu-latest
+  services:
+   postgres:
+    image: postgres:18.1
+    env:
+     POSTGRES_DB: zeroeye
+     POSTGRES_USER: zeroeye
+     POSTGRES_PASSWORD: isolated-ci-only-password
+    ports: ["5432:5432"]
+    options: >-
+     --health-cmd "pg_isready -U zeroeye -d zeroeye"
+     --health-interval 5s --health-timeout 3s --health-retries 20
+  env:
+   DATABASE_URL: postgresql://zeroeye:isolated-ci-only-password@127.0.0.1:5432/zeroeye
+   WEB_ORIGIN: http://localhost:5173
+   AI_SERVICE_URL: http://127.0.0.1:8000
+   AI_SERVICE_TOKEN: isolated-ci-only-investigation-token
+  steps:
+   - uses: actions/checkout@v4
+   - uses: actions/setup-node@v4
+     with:
+      node-version: '24'
+      cache: npm
+   - uses: actions/setup-python@v5
+     with:
+      python-version: '3.14'
+   - run: npm ci --no-fund
+   - run: npm run db:generate
+   - run: npm run db:migrate
+   - run: npm run typecheck
+   - run: npm test
+   - run: npm run build
+   - run: pip install -r agents/windows/requirements-dev.lock.txt -r apps/ai-service/requirements.lock.txt
+   - run: python -m pytest agents/windows/tests apps/ai-service -q
+   - name: Start local investigation service
+     run: python -m uvicorn main:app --host 127.0.0.1 --port 8000 &
+     working-directory: apps/ai-service
+   - run: npm run test:integration
+   - run: npm audit --audit-level=high
+ windows-package:
+  runs-on: windows-latest
+  steps:
+   - uses: actions/checkout@v4
+   - uses: actions/setup-node@v4
+     with:
+      node-version: '24'
+   - uses: actions/setup-python@v5
+     with:
+      python-version: '3.14'
+   - run: python -m venv .runtime/python
+   - run: .runtime/python/Scripts/python -m pip install -r agents/windows/requirements-dev.lock.txt
+   - run: npm run agent:build
+   - run: agents/windows/dist/ZeroEye-Agent/ZeroEye-Agent.exe --help
+   - uses: actions/upload-artifact@v4
+     with:
+      name: zeroeye-windows-executables-unverified-installation
+      path: agents/windows/dist/
